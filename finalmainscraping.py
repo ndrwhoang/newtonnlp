@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup 
 import requests
-import csv
 import re
 
 
@@ -26,7 +25,7 @@ hyper_link = []
 
 
 
-    
+# Scraping information from the main page 
 for i in norm_text:
     # Scraping index key
     key.append(i.find('td', {'class' : 'key'}).text)
@@ -51,6 +50,8 @@ df = pd.DataFrame({'key' : key,
                    'main_title' : main_title,
                    'metadata' : metadata,
                    'link_list' : hyper_link})
+# Convert the link_list to string to be processed in the statements below
+df.link_list = df.link_list.astype(str)
     
     
 # Cleaning hyper_link column
@@ -65,16 +66,6 @@ df = pd.DataFrame({
 # Removing redundant redundant characters
 df['link_list'] = df.link_list.apply(lambda x: x.replace('[', '').replace(']', '').replace(' ', '').replace("'", ""))
 
-
-# Cleaning metadata column
-# Removing 'Metadata:'
-df.metadata = [x[10:] for x in df.metadata]
-# Removing redundant characters
-df['metadata'] = df.metadata.apply(lambda x: x.replace('\n', ''))
-df.metadata = df.metadata.replace('\s+', ' ', regex = True)
-# Splitting into multiple columns
-#df[['time', 'language', 'no1', 'length']] = df['metadata'].str.split(',', expand = True)
-pd.concat([df, df.metadata.str.get_dummies(sep = ', ')],1)
 
 # Scraping full text for each article
 # Title of each small chapters
