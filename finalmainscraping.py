@@ -50,8 +50,16 @@ df = pd.DataFrame({'key' : key,
                    'main_title' : main_title,
                    'metadata' : metadata,
                    'link_list' : hyper_link})
+
+# Remove extra characters from metadata
+df['metadata'] = df['metadata'].str[10:]                                        # Remove 'Metadata:' at the beginning
+df['metadata'] = df['metadata'].str.strip()                                     # Remove trailing spaces
+df['metadata'] = df['metadata'].str.replace('\s+', ' ', regex = True)          # Remove long spaces inbetween
+
 # Convert the link_list to string to be processed in the statements below
 df.link_list = df.link_list.astype(str)
+
+
     
     
 # Cleaning hyper_link column
