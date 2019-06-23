@@ -20,5 +20,14 @@ df['time'] = df['metadata'].str.split(', ').str[0]
 # Language column
 df['language'] = df.metadata.str.split(', ').str[1]
 
+# Create a column that categorizes each text into 1 language category
+# 4 categories: English, Latin, Mixed (English and Latin), and Other
+df.loc[df['language'].str.contains('English'), 'language1'] = 'English'
+df.loc[df['language'].str.contains('Latin'), 'language1'] = 'Latin'
+df.loc[(df['language'].str.contains('English')) & (df['language'].str.contains('Latin')), 'language1'] = 'Mixed'
+df['language1'].fillna('Other', inplace = True)
+
+
+
 # Export to csv
 df.to_csv('fulldatasetcleaned.csv', encoding = 'utf-8')
