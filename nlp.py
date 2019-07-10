@@ -2,10 +2,7 @@
 import base64
 import pandas as pd
 import numpy as np
-from nltk.stem import WordNetLemmatizer
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.decomposition import NMF, LatentDirichletAllocation, TruncatedSVD
-from sklearn.model_selection import GridSearchCV
+import re
 
 
 # Plotting libraries
@@ -15,16 +12,15 @@ import plotly.graph_objs as go
 import plotly.tools as tls
 from matplotlib import pyplot as plt
 %matplotlib inline
-from wordcloud import WordCloud, STOPWORDS
-import pyLDAvis
-import pyLDAvis.sklearn
-from sklearn.cluster import KMeans
+
+
 
 
 # Import data
-df = pd.read_csv('D:/work/pythonproject/newtonnlp/csv/fulldatasetcleaned.csv', encoding = "utf-8")
+df = pd.read_csv('D:/work/pythonproject/newtonnlp/csv/fulldataset.csv', encoding = "utf-8")
 df = df.drop(df.columns[0], axis=1)
 list(df)
+df.fillna('NA', inplace = True)
 
 
 # Subsetting English corpus
@@ -33,11 +29,14 @@ df_eng = df.loc[df.language1 == 'English']
 df_latin = df.loc[df.language1 == 'Latin']
 
 
+from nltk.stem import WordNetLemmatizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk import bigrams, word_tokenize, FreqDist
 # Calling for lemmatizer as stemming can be unreliable
 lemm = WordNetLemmatizer()
 # Combining sklearn vectorizer with lemmatization
-# Subclass the original CountVectorizer, change the build_analyzer method to have lemmatization
-class LemmaCountVectorizer(CountVectorizer):
+# Subclass the original TfidfCountVectorizer, change the build_analyzer method to have lemmatization
+class LemmaCountVectorizer(TfidfVectorizer):
     def build_analyzer(self):
         analyzer = super(LemmaCountVectorizer, self).build_analyzer()
         return lambda doc: (lemm.lemmatize(ianalyzer) for ianalyzer in analyzer(doc))
@@ -45,7 +44,7 @@ class LemmaCountVectorizer(CountVectorizer):
 # Create a list of all the texts to be vectorized
 text = list(df_eng.full_text)
 # Calling the vectorizer function above
-tf_vectorizer = LemmaCountVectorizer(max_df = 0.95,
+tf_vectorizer = LemmaCountVectorizer(max_df = 0.90,
                                      min_df = 2,
                                      stop_words = 'english',
                                      decode_error = 'ignore')
@@ -74,10 +73,12 @@ bottom = np.concatenate([y[0:15], y[-16:-1]])
 top = np.concatenate([x[0:15], x[-16:-1]])
 
 
+
+from sklearn.decomposition import LatentDirichletAllocation, TruncatedSVD
 # Creating a topic model
 # Applying sklearn implementation of LDA, genism's implementation is worth considering
 # 10 topics, maximum 5 iterations, switch batch to online if data size too large, set seed for reproducability
-lda = LatentDirichletAllocation(n_components = 10,
+lda = LatentDirichletAllocation(n_components = 3,
                                 max_iter = 10,
                                 learning_method = 'batch',
                                 learning_offset = 50,
@@ -92,23 +93,26 @@ lda.fit(tf)
 lda.score(tf)
 
 
-# LDA model with tuning
-# Tuning parameters
-search_params = {'n_components': [5, 10, 15, 20],
-                 'learning_decay': [.5, .7, .9]}
-# Model initialization
-lda = LatentDirichletAllocation(random_state = 0)
-# Grid search with cross-validation (3 folds)
-model = GridSearchCV(lda, param_grid = search_params)
-model.fit(tf)
-
-# Best model
-best_lda_model = model.best_estimator_
-# Parameters
-model.best_params_
-# Log likelihood score
-model.best_score_
-
+# =============================================================================
+# from sklearn.model_selection import GridSearchCV
+# # LDA model with tuning
+# # Tuning parameters
+# search_params = {'n_components': [3, 5, 7, 10],
+#                  'learning_decay': [.5, .7, .9]}
+# # Model initialization
+# lda = LatentDirichletAllocation(random_state = 0)
+# # Grid search with cross-validation (3 folds)
+# model = GridSearchCV(lda, param_grid = search_params)
+# model.fit(tf)
+# 
+# # Best model
+# best_lda_model = model.best_estimator_
+# # Parameters
+# model.best_params_
+# # Log likelihood score
+# model.best_score_
+# 
+# =============================================================================
 
 # List of topics and top words in each topic
 # Function to print out top words
@@ -121,8 +125,7 @@ def top_words(model, feature, n_words):
 tf_feature_names = tf_vectorizer.get_feature_names()
 # Printing out 40 words
 n_words = 40
-top_words(best_lda_model, tf_feature_names, n_words)                                               
-
+top_words(lda, tf_feature_names, n_words)                                               
 
 
 # Graphs for each topic model
@@ -138,6 +141,8 @@ third_topic_words = [tf_feature_names[i] for i in third_topic.argsort()[:-50 - 1
 fourth_topic_words = [tf_feature_names[i] for i in fourth_topic.argsort()[:-50 - 1 :-1]]
 
 
+
+from wordcloud import WordCloud, STOPWORDS
 # Words Clouds
 # Create variable for which graph to plot for parameterization
 w = second_topic_words
@@ -145,17 +150,17 @@ w = second_topic_words
 cloud = WordCloud(stopwords = STOPWORDS,
                   background_color = 'white',
                   width = 2500,
-                  height = 1800).generate(' '.join(a))
+                  height = 1800).generate(' '.join(w))
 plt.imshow(cloud)
 
 
 # Dominant Topic and Distribution
 # Document - Topic Matrix
-lda_output = best_lda_model.transform(tf)
+lda_output = lda.transform(tf)
 # Column names
-topicnames = ['Topic ' + str(icomponents) for icomponents in range(best_lda_model.n_components)]
+topicnames = ['Topic ' + str(icomponents) for icomponents in range(lda.n_components)]
 # Document index
-docnames = ['Doc ' + str(itext) for itext in range(len(df_eng))]
+docnames = ['Doc ' + str(itext) for itext in range(len(df))]
 # Create a df of the 2
 df_doc_topic = pd.DataFrame(np.round(lda_output, 2), columns = topicnames, index = docnames)
 # Create dominant topic column for each document
@@ -167,15 +172,20 @@ df_topic_distribution.columns = ['Topic', '# Documents']
 df_topic_distribution
 
 
+
+import pyLDAvis
+import pyLDAvis.sklearn
 # pyLDAvis graphs
 pyLDAvis.enable_notebook()
-panel = pyLDAvis.sklearn.prepare(best_lda_model, tf, tf_vectorizer, mds = 'tsne', sort=False)
+panel = pyLDAvis.sklearn.prepare(lda, tf, tf_vectorizer, mds = 'tsne')
 pyLDAvis.show(panel)
 
 
+
+from sklearn.cluster import KMeans
 # Topic Clustering
 # Initialize clusters
-clusters = KMeans(n_clusters = 5, random_state = 0).fit_predict(lda_output)
+clusters = KMeans(n_clusters = 4, random_state = 0).fit_predict(lda_output)
 # Singular value decomposition model to create graph
 svd_model = TruncatedSVD(n_components = 2)
 lda_output_svd = svd_model.fit_transform(lda_output)
@@ -190,3 +200,17 @@ plt.scatter(x, y, c = clusters)
 plt.xlabel('Component 2')
 plt.ylabel('Component 1')
 plt.title('Topic Clusters',)
+
+
+# =============================================================================
+# import networkx as nx
+# from collections import Counter
+# # Word co occurence network / directed word graph
+# full_str = ' '.join(df_eng.full_text)
+# tokens = word_tokenize(full_str)
+# bgs_count = Counter(list(bigrams(tokens)))
+# bgs_count.most_common(20)
+# =============================================================================
+
+
+
