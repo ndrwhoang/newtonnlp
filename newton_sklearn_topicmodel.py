@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 
 
 # Import data
-df = pd.read_csv('D:/work/pythonproject/newtonnlp/csv/fulldataset.csv', encoding = "utf-8")
+df = pd.read_csv('fulldataset.csv', encoding = "utf-8")
 df = df.drop(df.columns[0], axis=1)
 list(df)
 df.fillna('NA', inplace = True)
