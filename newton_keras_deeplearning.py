@@ -1,4 +1,3 @@
-#https://www.kaggle.com/sbongo/for-beginners-tackling-toxic-using-keras
 # Neccessities
 import pandas as pd
 import numpy as np
